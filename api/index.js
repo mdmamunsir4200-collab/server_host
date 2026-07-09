@@ -1,7 +1,7 @@
-// server.js
-// A tiny Express API that receives contact-form submissions and emails them
-// through one of several Gmail accounts, rotating to the next account if the
-// current one fails (e.g. hits Gmail's daily sending limit).
+// api/index.js
+// Same contact-form API as before, adapted to run as a Vercel Serverless
+// Function. Vercel automatically maps everything under /api to functions,
+// so this file becomes your API entrypoint (see vercel.json for routing).
 
 const express = require("express");
 const cors = require("cors");
@@ -11,9 +11,6 @@ require("dotenv").config();
 const app = express();
 app.use(express.json());
 
-// Restrict which origins are allowed to call this API. Add your real
-// deployed site URL(s) here once you know them. For local testing you can
-// temporarily allow everything by setting ALLOWED_ORIGINS=*
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "*")
   .split(",")
   .map((o) => o.trim());
@@ -34,25 +31,12 @@ app.use(
 );
 
 // ---- Rotation of sender accounts ----
-// Each account needs a Gmail "App Password" (not your normal Gmail
-// password). See README.md for how to generate one.
 const ACCOUNTS = [
-  {
-    user: process.env.GMAIL_USER_1,
-    pass: process.env.GMAIL_PASS_1,
-  },
-  {
-    user: process.env.GMAIL_USER_2,
-    pass: process.env.GMAIL_PASS_2,
-  },
-  {
-    user: process.env.GMAIL_USER_3,
-    pass: process.env.GMAIL_PASS_3,
-  },
-].filter((a) => a.user && a.pass); // ignore any not configured in .env
+  { user: process.env.GMAIL_USER_1, pass: process.env.GMAIL_PASS_1 },
+  { user: process.env.GMAIL_USER_2, pass: process.env.GMAIL_PASS_2 },
+  { user: process.env.GMAIL_USER_3, pass: process.env.GMAIL_PASS_3 },
+].filter((a) => a.user && a.pass);
 
-// Where the actual contact-form notifications should land. Defaults to the
-// first configured account, but you can override with CONTACT_TO_EMAIL.
 const CONTACT_TO_EMAIL =
   process.env.CONTACT_TO_EMAIL || (ACCOUNTS[0] && ACCOUNTS[0].user);
 
@@ -66,7 +50,7 @@ function buildTransport(account) {
 async function sendWithRotation({ name, email, subject, message }) {
   if (ACCOUNTS.length === 0) {
     throw new Error(
-      "No sender accounts configured. Set GMAIL_USER_1/GMAIL_PASS_1 etc. in .env",
+      "No sender accounts configured. Set GMAIL_USER_1/GMAIL_PASS_1 etc. as Vercel env vars.",
     );
   }
 
@@ -93,7 +77,6 @@ async function sendWithRotation({ name, email, subject, message }) {
     } catch (err) {
       console.warn(`Send failed from ${account.user}:`, err.message);
       lastError = err;
-      // try the next account in the list (e.g. this one hit its daily cap)
       continue;
     }
   }
@@ -105,12 +88,10 @@ app.post("/api/contact", async (req, res) => {
   const { name, email, subject, message } = req.body || {};
 
   if (!name || !email || !message) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "name, email, and message are required.",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "name, email, and message are required.",
+    });
   }
 
   try {
@@ -125,12 +106,19 @@ app.post("/api/contact", async (req, res) => {
   }
 });
 
-app.get("/health", (req, res) => res.json({ ok: true }));
+app.get("/api/health", (req, res) => res.json({ ok: true }));
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Contact server running on port ${PORT}`);
-  console.log(
-    `Configured sender accounts: ${ACCOUNTS.map((a) => a.user).join(", ") || "NONE — set .env"}`,
-  );
-});
+// Only start a listener when running locally (e.g. `node api/index.js` or
+// `vercel dev`). On Vercel's production servers, this file is imported as a
+// module and the platform itself handles invoking `app` per request.
+if (process.env.VERCEL === undefined && require.main === module) {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`Contact server running locally on port ${PORT}`);
+    console.log(
+      `Configured sender accounts: ${ACCOUNTS.map((a) => a.user).join(", ") || "NONE — set .env"}`,
+    );
+  });
+}
+
+module.exports = app;
