@@ -138,7 +138,7 @@ Projects:
 2. Chain Hook Wallet (https://chain-hook-client.vercel.app) — built with React.js, Django, and Tailwind CSS, using PostgreSQL, deployed on Vercel.
 3. Lyren (https://lyren-client.vercel.app) — built with Next.js, .NET, PostgreSQL, and Redis, styled with raw CSS, deployed on Vercel and Render.
 
-Contact: asraful@email.com | github.com/asraful | linkedin.com/in/md-asraful-399a86250 | x.com/asraful808088 | kaggle.com/mdasraful00000000 | Bangladesh
+Contact: asraful808088@email.com | https://github.com/asraful808088 | linkedin.com/in/md-asraful-399a86250 | x.com/asraful808088 | kaggle.com/mdasraful00000000 | Bangladesh
 
 Keep answers concise, warm, and encouraging.`;
 
